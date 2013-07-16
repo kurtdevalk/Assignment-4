@@ -1,0 +1,206 @@
+#Author's name: Kurtis De Valk
+#Last Modified by: Kurtis De Valk 
+#Date last Modified: July. 15, 2013 
+#Program description: Side Scrolling adventure 
+#Revision History: 2.0
+
+import pygame, random
+pygame.init()
+
+screen = pygame.display.set_mode((640, 480))
+    
+#create a ship sprite that moves up and down on the left side of the screen
+
+class Falcon(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load("falcon.png")
+        self.image = pygame.transform.scale(self.image, (100, 75))
+        self.rect = self.image.get_rect()
+        
+        if not pygame.mixer:
+            print("problem with sound")
+        else:
+            pygame.mixer.init()
+            self.sndOdds = pygame.mixer.Sound("TheOdds.ogg")
+            self.sndAsteroidField = pygame.mixer.Sound("TheAsteroidField.ogg")
+            self.sndImpact = pygame.mixer.Sound("explosion1.ogg")
+            self.sndAsteroidField.play()
+        
+    def update(self):
+        mousex, mousey = pygame.mouse.get_pos()
+        self.rect.center = (75, mousey)
+        
+# create asteroids for the ship to avoid
+
+class Asteroid(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load("asteroid.png")
+        self.rect = self.image.get_rect()
+        self.reset()
+        
+    def update(self):
+        self.rect.topleft = self.X, self.Y
+        self.X += self.directX
+        self.Y += self.directY
+        if self.X < -80:
+            self.reset()
+        elif self.Y < -80:
+            self.reset()
+        elif self.Y > 560:
+            self.reset()
+            
+    def reset(self):
+        self.rect.right = 0
+        self.image = pygame.transform.scale(self.image, (75, 75))
+        self.X = 700
+        self.Y = random.randrange(0, 480)
+        self.directX = random.randrange(-5, 5)
+        self.directY = random.randrange(-5, 5)
+
+#create a scoring system
+        
+class Hull(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.hits = 5
+        self.font = pygame.font.SysFont("None", 50)
+        
+    def update(self):
+        self.text = "Hits to hull breach: %d " (self.hits)
+        self.image = self.font.render(self.text, 1, (255, 255, 0))
+        self.rect = self.image.get_rect()
+                       
+def game():
+
+    pygame.display.set_caption("The Empire is in pursuit! Avoid the asteroids!")
+            
+#Load the game sprites
+
+    hull = Hull()
+    background = pygame.image.load("Starfield.png")
+    falcon = Falcon()
+    asteroid1 = Asteroid()
+    asteroid2 = Asteroid()
+    asteroid3 = Asteroid()
+    asteroid4 = Asteroid()
+    asteroid5 = Asteroid()
+    backgroundx = 0
+    falcon.sndOdds.play()
+        
+    asteroidSprites = pygame.sprite.Group(asteroid1, asteroid2, asteroid3, asteroid4, asteroid5)    
+    friendSprites = pygame.sprite.Group(falcon)
+    
+    clock = pygame.time.Clock()
+    keepGoing = True
+    while keepGoing:
+        clock.tick(40)
+        pygame.mouse.set_visible(False)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                keepGoing = False
+
+# create collision parameters
+
+        asteroidCollision = pygame.sprite.spritecollide(falcon, asteroidSprites, False)
+        if asteroidCollision:
+            falcon.sndImpact.play()
+            hull.hits -= 1
+            if hull.hits <= 0:
+                keepGoing = False
+                falcon.sndAsteroidField.stop()
+            for theAsteroid in asteroidCollision:
+                theAsteroid.reset()
+                
+# create movement for the sprites
+
+        backgroundx -= 5        
+        if backgroundx <= -640:
+            backgroundx = 0
+        screen.blit(background, (backgroundx, 0))
+        asteroid1.X -= 10
+        asteroid2.X -= 7.5
+        asteroid3.X -= 7.5
+        asteroid4.X -= 7.5
+        asteroid5.X -= 5
+        asteroidSprites.update()
+        asteroidSprites.draw(screen)
+        friendSprites.update()
+        friendSprites.draw(screen)
+        
+        pygame.display.flip()
+        
+def instructions():
+    pygame.display.set_caption("STAR WARS: The Asteroid Field")
+
+#create a main title screen
+
+    sndMainTitle = pygame.mixer.Sound("MainTitle.ogg")
+    background = pygame.image.load("Starfield.png")
+    backgroundx = 0       
+    screen.blit(background, (backgroundx, 0))
+    falcon = Falcon()
+    
+    falcon.sndAsteroidField.stop()
+    sndMainTitle.play() 
+    
+    insFont = pygame.font.SysFont(None, 50)
+    insLabels = []
+    instructions = (
+    "" ,
+    "                 STAR WARS            " ,
+    "            The Asteroid Field       ",
+    "",
+    "You have barely escaped the",
+    "",
+    "Empire on Hoth. Now you must",
+    "",
+    "  traverse the asteroid field",
+    "",
+    "  to avoid The Imperial Fleet!",
+    "",
+    "  click to start, escape to quit..."
+    )
+    
+    for line in instructions:
+        tempLabel = insFont.render(line, 1, (255, 255, 0))
+        insLabels.append(tempLabel)
+ 
+    keepGoing = True
+    clock = pygame.time.Clock()
+    pygame.mouse.set_visible(False)
+    while keepGoing:
+        clock.tick(30)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                keepGoing = False
+                donePlaying = True
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                sndMainTitle.stop()
+                keepGoing = False
+                donePlaying = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    keepGoing = False
+                    donePlaying = True
+
+        for i in range(len(insLabels)):
+            screen.blit(insLabels[i], (50, 30*i))
+
+        pygame.display.flip()
+           
+    pygame.mouse.set_visible(True)
+    return donePlaying
+        
+def main():
+    donePlaying = False
+    while not donePlaying:
+        donePlaying = instructions()
+        if not donePlaying:
+            score = game()
+                
+    #return mouse cursor
+    pygame.mouse.set_visible(True) 
+if __name__ == "__main__":
+    main()
